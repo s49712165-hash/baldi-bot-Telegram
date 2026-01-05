@@ -1,79 +1,82 @@
-import asyncio, urllib.parse, requests, uuid
-from aiogram import Bot, Dispatcher, types
+import asyncio
+import os
+from aiogram import Bot, Dispatcher, F, types
+from aiogram.filters import Command
+import edge_tts
+import speech_recognition as sr
+from pydub import AudioSegment
 
-# === ТВОИ ДАННЫЕ ===
-TG_TOKEN = "8257171581:AAG9puuLo5RvkPNKz1XW2QDDBzpri1lw0kc"
+# === КОНФИГУРАЦИЯ ===
+# Твой актуальный токен
+TOKEN = "8257171581:AAG9puuLo5RvkPNKz1XW2QDDBzpri1lw0kc"
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
 
-# Твой авторизационный код GigaChat
-GIGA_AUTH_CODE = "MDE5Yjg5ZTMtZjg5Ny03ZjE4LTg2NDctODIxN2VkNWI4NTI4OjI4OGYzOTNlLWEzMDctNDZlNC1iNTgyLWRlODg2ZjYxNWRmZQ=="
+# Функция для превращения текста в голос (как у Салюта)
+async def text_to_voice(text):
+    output_file = "answer.mp3"
+    # Голос 'ru-RU-SvetlanaNeural' очень похож на человеческий
+    communicate = edge_tts.Communicate(text, "ru-RU-SvetlanaNeural")
+    await communicate.save(output_file)
+    return output_file
 
-bot, dp = Bot(token=TG_TOKEN), Dispatcher()
-
-# Функция получения токена (ключа) от Сбера
-def get_giga_token(auth_code):
-    url = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
-    headers = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-        'RqUID': str(uuid.uuid4()),
-        'Authorization': f'Basic {auth_code}'
-    }
-    payload = {'scope': 'GIGACHAT_API_PERS'}
-    # Игнорируем проверку SSL для работы на Android
-    response = requests.post(url, headers=headers, data=payload, verify=False)
-    return response.json().get('access_token')
-
-@dp.message()
-async def handle_message(m: types.Message):
-    if not m.text: return
+# Функция для распознавания того, что ты сказал в ГС
+def voice_to_text(file_path):
+    r = sr.Recognizer()
+    # Конвертируем .ogg (из телеги) в .wav (для распознавания)
+    audio = AudioSegment.from_file(file_path)
+    audio.export("temp.wav", format="wav")
     
-    # Команда рисования картинок
-    if m.text.startswith("/рисуй"):
-        prompt = m.text[7:].strip()
-        if not prompt:
-            await m.answer("Напиши, что нарисовать, например: /рисуй кота")
-            return
-        await m.answer_photo(f"https://pollinations.ai/p/{urllib.parse.quote(prompt)}?width=1024&height=1024&model=flux")
-        return
+    with sr.AudioFile("temp.wav") as source:
+        audio_data = r.record(source)
+        try:
+            return r.recognize_google(audio_data, language="ru-RU")
+        except:
+            return "Не удалось распознать речь"
 
-    # Общение с GigaChat
-    try:
-        await bot.send_chat_action(m.chat.id, "typing")
-        
-        # Получаем временный доступ
-        token = get_giga_token(GIGA_AUTH_CODE)
-        
-        if not token:
-            await m.answer("❌ Ошибка авторизации. Проверь ключ Сбера!")
-            return
+# Обработка команды /start
+@dp.message(Command("start"))
+async def start(message: types.Message):
+    await message.answer("Привет! Я Балди. Я теперь слышу твои ГС и отвечаю голосом!")
 
-        # Отправляем запрос нейросети
-        url = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions"
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {token}'
-        }
-        data = {
-            "model": "GigaChat",
-            "messages": [{"role": "user", "content": m.text}],
-            "temperature": 0.7
-        }
-        
-        res = requests.post(url, headers=headers, json=data, verify=False)
-        answer = res.json()['choices'][0]['message']['content']
-        await m.answer(answer)
-            
-    except Exception as e:
-        await m.answer(f"🤖 У меня возникла заминка. Попробуй еще раз!\nОшибка: {e}")
+# ОБРАБОТКА ГОЛОСОВЫХ СООБЩЕНИЙ (Голос на Голос)
+@dp.message(F.voice)
+async def handle_voice(message: types.Message):
+    # 1. Скачиваем ГС
+    file_id = message.voice.file_id
+    file = await bot.get_file(file_id)
+    file_path = "user_voice.ogg"
+    await bot.download_file(file.file_path, file_path)
+
+    # 2. Переводим голос в текст
+    user_text = voice_to_text(file_path)
+    
+    # 3. Формируем ответ (здесь можно подключить твою нейросеть)
+    ai_response = f"Ты сказал: '{user_text}'. Я тебя услышал!" 
+
+    # 4. Превращаем ответ в голос
+    voice_file = await text_to_voice(ai_response)
+
+    # 5. Отправляем голосовой ответ
+    await message.answer_voice(types.FSInputFile(voice_file))
+    
+    # Чистим временные файлы
+    if os.path.exists(file_path): os.remove(file_path)
+    if os.path.exists(voice_file): os.remove(voice_file)
+
+# Обработка обычного текста (тоже отвечает голосом)
+@dp.message(F.text)
+async def handle_text(message: types.Message):
+    ai_response = f"Балди говорит: {message.text}" # Тут твоя логика нейронки
+    voice_file = await text_to_voice(ai_response)
+    await message.answer_voice(types.FSInputFile(voice_file))
+    if os.path.exists(voice_file): os.remove(voice_file)
 
 async def main():
-    # Отключаем лишние предупреждения в консоли
-    import urllib3
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    
-    print(">>> БОТ BALDI AI УСПЕШНО ЗАПУЩЕН!")
+    print(">>> БОТ BALDI AI ЗАПУЩЕН!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
