@@ -3,3 +3,4 @@ requests
 edge-tts
 SpeechRecognition
 pydub
+gigachat 
