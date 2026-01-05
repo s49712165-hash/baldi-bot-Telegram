@@ -8,24 +8,25 @@ from pydub import AudioSegment
 from gigachat import GigaChat
 
 # === КОНФИГУРАЦИЯ ===
+# Твой токен бота
 TOKEN = "8257171581:AAG9puuLo5RvkPNKz1XW2QDDBzpri1lw0kc"
-# ВСТАВЬ СВОЙ КЛЮЧ GIGACHAT НИЖЕ
+# Твой ключ GigaChat (уже вставлен!)
 GIGACHAT_API_KEY = "MDE5Yjg5ZTMtZjg5Ny03ZjE4LTg2NDctODIxN2VkNWI4NTI4OjVkZjViMDlhLTExMzMtNDg2MC04MWMzLTVjNDU5MDhkNmJjOA=="
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Инициализация GigaChat
+# Инициализация GigaChat (отключаем проверку сертификатов для работы на Render)
 giga = GigaChat(credentials=GIGACHAT_API_KEY, verify_ssl_certs=False)
 
-# Функция для превращения текста в голос
+# Функция для превращения текста в голос (Светлана)
 async def text_to_voice(text):
     output_file = "answer.mp3"
     communicate = edge_tts.Communicate(text, "ru-RU-SvetlanaNeural")
     await communicate.save(output_file)
     return output_file
 
-# Функция для распознавания речи
+# Функция для распознавания твоего ГС в текст
 def voice_to_text(file_path):
     r = sr.Recognizer()
     try:
@@ -34,28 +35,27 @@ def voice_to_text(file_path):
         with sr.AudioFile("temp.wav") as source:
             audio_data = r.record(source)
             return r.recognize_google(audio_data, language="ru-RU")
-    except Exception as e:
-        print(f"Ошибка распознавания: {e}")
+    except Exception:
         return None
 
-# Функция запроса к GigaChat
+# Запрос к нейросети GigaChat
 async def get_ai_response(text):
     try:
-        response = giga.chat(f"Отвечай как персонаж Балди из игры Baldi's Basics. Будь строгим, но иногда шути про математику. Твой ответ на фразу: {text}")
+        # Промпт: задаем характер Балди
+        response = giga.chat(f"Ты — Балди из игры Baldi's Basics. Ты строгий учитель, любишь математику и иногда пугаешь учеников. Отвечай коротко. Фраза ученика: {text}")
         return response.choices[0].message.content
     except Exception as e:
         print(f"Ошибка GigaChat: {e}")
-        return "У меня возникла ошибка в голове, давай лучше решим пример!"
+        return "У меня линейка сломалась, не могу ответить!"
 
 @dp.message(Command("start"))
 async def start(message: types.Message):
-    await message.answer("Привет! Я Балди. Я подключен к GigaChat и готов общаться голосом!")
+    await message.answer("Я Балди! Я подключен к GigaChat. Присылай текст или ГС, и я отвечу тебе своим голосом!")
 
-# Обработка ГС (Голос -> Текст -> ИИ -> Голос)
+# Обработка голосовых сообщений
 @dp.message(F.voice)
 async def handle_voice(message: types.Message):
-    file_id = message.voice.file_id
-    file = await bot.get_file(file_id)
+    file = await bot.get_file(message.voice.file_id)
     file_path = "user_voice.ogg"
     await bot.download_file(file.file_path, file_path)
 
@@ -67,12 +67,12 @@ async def handle_voice(message: types.Message):
         await message.answer_voice(types.FSInputFile(voice_file))
         if os.path.exists(voice_file): os.remove(voice_file)
     else:
-        await message.answer("Я не смог разобрать, что ты сказал.")
+        await message.answer("Я не разобрал твоё бубнение! Говори четче!")
     
     for f in [file_path, "temp.wav"]:
         if os.path.exists(f): os.remove(f)
 
-# Обработка Текста (Текст -> ИИ -> Голос)
+# Обработка текстовых сообщений
 @dp.message(F.text)
 async def handle_text(message: types.Message):
     ai_response = await get_ai_response(message.text)
@@ -81,9 +81,10 @@ async def handle_text(message: types.Message):
     if os.path.exists(voice_file): os.remove(voice_file)
 
 async def main():
-    print(">>> БОТ BALDI С GIGACHAT ЗАПУЩЕН!")
+    print(">>> БОТ BALDI (GIGACHAT) ЗАПУЩЕН!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
