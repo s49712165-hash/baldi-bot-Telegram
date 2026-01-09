@@ -50,6 +50,27 @@ def handle_all_messages(message):
     
     # Отправляем ответ пользователю
     bot.send_message(message.chat.id, answer)
+# 53 строка: Настройка твоего ID (замени на свои цифры)
+ADMIN_ID = 591234567 
+
+@bot.message_handler(func=lambda message: True)
+def handle_text(message):
+    print(f"--- Сообщение от {message.from_user.id}: {message.text}")
+    
+    # Если это ТЫ (Админ) — бот отвечает
+    if message.from_user.id == ADMIN_ID:
+        bot.send_chat_action(message.chat.id, 'typing')
+        ans = get_ai_answer(message.text)
+        bot.send_message(message.chat.id, ans)
+    # Если это КТО-ТО ДРУГОЙ — просим оплату
+    else:
+        bot.send_message(
+            message.chat.id, 
+            "❌ Доступ ограничен! Введите /premium для оплаты (100 звёзд)."
+        )
+
+# 70-я строка (примерно): Начало блока запуска
+if __name__ == "__main__":
 
 # --- 5. ЗАПУСК ВСЕЙ СИСТЕМЫ ---
 if __name__ == "__main__":
