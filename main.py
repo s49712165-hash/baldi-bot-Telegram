@@ -4,56 +4,61 @@ from flask import Flask
 import telebot
 from gigachat import GigaChat
 
-# --- 1. НАСТРОЙКА ВЕБ-СЕРВЕРА (Для Render) ---
+# --- 1. ВЕБ-СЕРВЕР ДЛЯ ОБХОДА ТАЙМАУТА RENDER ---
 app = Flask(__name__)
 
 @app.route('/')
 def health_check():
-    return "Bot is running!", 200
+    return "Baldi AI is active!", 200
 
 def run_web_server():
-    # Render выдает порт автоматически
+    # Render автоматически назначает порт, Flask должен его слушать
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-# --- 2. НАСТРОЙКА API КЛЮЧЕЙ ---
-# Рекомендуется добавить их в Environment Variables на Render
-TG_TOKEN = "ВАШ_ТЕЛЕГРАМ_ТОКЕН"
-GIGACHAT_CREDENTIALS = "ВАШ_GIGACHAT_AUTH_ДАННЫЕ"
+# --- 2. ВАШИ ТОКЕНЫ ---
+# Телеграм токен
+TG_TOKEN = "8257171581:AAG9puuLo5RvkPNKz1XW2QDDBzpri1lw0kc"
+# Авторизационные данные GigaChat
+GIGACHAT_CREDENTIALS = "MDE5Yjg5ZTMtZjg5Ny03ZjE4LTg2NDctODIxN2VkNWI4NTI4OjVkZjViMDlhLTExMzMtNDg2MC04MWMzLTVjNDU5MDhkNmJjOA=="
 
 bot = telebot.TeleBot(TG_TOKEN)
 
-# --- 3. ЛОГИКА GIGACHAT ---
-def get_giga_response(user_text):
+# --- 3. ФУНКЦИЯ ЗАПРОСА К GIGACHAT ---
+def get_ai_response(text):
     try:
-        # Авторизация и запрос к GigaChat
+        # verify_ssl_certs=False критичен для работы на некоторых серверах
         with GigaChat(credentials=GIGACHAT_CREDENTIALS, verify_ssl_certs=False) as giga:
-            response = giga.chat(user_text)
+            response = giga.chat(text)
             return response.choices[0].message.content
     except Exception as e:
         print(f"Ошибка GigaChat: {e}")
-        return "Извини, произошла ошибка при запросе к нейросети."
+        return "Извини, я немного завис. Попробуй еще раз!"
 
-# --- 4. ОБРАБОТЧИКИ ТЕЛЕГРАМ ---
+# --- 4. ОБРАБОТКА КОМАНД И СООБЩЕНИЙ ---
 @bot.message_handler(commands=['start'])
-def send_welcome(message):
-    bot.reply_to(message, "Привет! Я Baldi AI. Напиши мне что угодно, и я отвечу с помощью GigaChat.")
+def start_cmd(message):
+    bot.reply_to(message, "Привет! Я Baldi AI. Я готов общаться через GigaChat!")
 
 @bot.message_handler(func=lambda message: True)
-def handle_message(message):
-    # Отправляем статус "печатает", пока ждем нейросеть
+def handle_all_messages(message):
+    # Показываем, что бот печатает
     bot.send_chat_action(message.chat.id, 'typing')
     
-    answer = get_giga_response(message.text)
-    bot.reply_to(message, answer)
+    # Получаем ответ от нейросети
+    answer = get_ai_response(message.text)
+    
+    # Отправляем ответ пользователю
+    bot.send_message(message.chat.id, answer)
 
 # --- 5. ЗАПУСК ВСЕЙ СИСТЕМЫ ---
 if __name__ == "__main__":
-    # Запускаем Flask в отдельном потоке
-    print("Запуск веб-сервера для Health Check...")
+    # Запускаем веб-сервер в фоновом потоке. 
+    # Это "обманет" Render: он увидит открытый порт и не будет выключать бота.
     threading.Thread(target=run_web_server, daemon=True).start()
     
-    # Запускаем бота
-    print("Бот запущен и ожидает сообщений...")
-    # infinity_polling предотвращает вылет бота при сетевых ошибках
-    bot.infinity_polling(timeout=10, long_polling_timeout=5)
+    print(">>> Flask запущен для проверки порта.")
+    print(">>> Бот Baldi AI начинает работу...")
+    
+    # Запуск бесконечного цикла прослушивания Телеграм
+    bot.infinity_polling()
