@@ -1,79 +1,59 @@
-import asyncio, urllib.parse, requests, uuid
-from aiogram import Bot, Dispatcher, types
+import os
+import threading
+from flask import Flask
+import telebot
+from gigachat import GigaChat
 
-# === ТВОИ ДАННЫЕ ===
-TG_TOKEN = "8257171581:AAG9puuLo5RvkPNKz1XW2QDDBzpri1lw0kc"
+# --- 1. НАСТРОЙКА ВЕБ-СЕРВЕРА (Для Render) ---
+app = Flask(__name__)
 
-# Твой авторизационный код GigaChat
-GIGA_AUTH_CODE ="MDE5Yjg5ZTMtZjg5Ny03ZjE4LTg2NDctODIxN2VkNWI4NTI4OjVkZjViMDlhLTExMzMtNDg2MC04MWMzLTVjNDU5MDhkNmJjOA=="
+@app.route('/')
+def health_check():
+    return "Bot is running!", 200
 
-bot, dp = Bot(token=TG_TOKEN), Dispatcher()
+def run_web_server():
+    # Render выдает порт автоматически
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
 
-# Функция получения токена (ключа) от Сбера
-def get_giga_token(auth_code):
-    url = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
-    headers = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-        'RqUID': str(uuid.uuid4()),
-        'Authorization': f'Basic {auth_code}'
-    }
-    payload = {'scope': 'GIGACHAT_API_PERS'}
-    # Игнорируем проверку SSL для работы на Android
-    response = requests.post(url, headers=headers, data=payload, verify=False)
-    return response.json().get('access_token')
+# --- 2. НАСТРОЙКА API КЛЮЧЕЙ ---
+# Рекомендуется добавить их в Environment Variables на Render
+TG_TOKEN = "ВАШ_ТЕЛЕГРАМ_ТОКЕН"
+GIGACHAT_CREDENTIALS = "ВАШ_GIGACHAT_AUTH_ДАННЫЕ"
 
-@dp.message()
-async def handle_message(m: types.Message):
-    if not m.text: return
-    
-    # Команда рисования картинок
-    if m.text.startswith("/рисуй"):
-        prompt = m.text[7:].strip()
-        if not prompt:
-            await m.answer("Напиши, что нарисовать, например: /рисуй кота")
-            return
-        await m.answer_photo(f"https://pollinations.ai/p/{urllib.parse.quote(prompt)}?width=1024&height=1024&model=flux")
-        return
+bot = telebot.TeleBot(TG_TOKEN)
 
-    # Общение с GigaChat
+# --- 3. ЛОГИКА GIGACHAT ---
+def get_giga_response(user_text):
     try:
-        await bot.send_chat_action(m.chat.id, "typing")
-        
-        # Получаем временный доступ
-        token = get_giga_token(GIGA_AUTH_CODE)
-        
-        if not token:
-            await m.answer("❌ Ошибка авторизации. Проверь ключ Сбера!")
-            return
-
-        # Отправляем запрос нейросети
-        url = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions"
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {token}'
-        }
-        data = {
-            "model": "GigaChat",
-            "messages": [{"role": "user", "content": m.text}],
-            "temperature": 0.7
-        }
-        
-        res = requests.post(url, headers=headers, json=data, verify=False)
-        answer = res.json()['choices'][0]['message']['content']
-        await m.answer(answer)
-            
+        # Авторизация и запрос к GigaChat
+        with GigaChat(credentials=GIGACHAT_CREDENTIALS, verify_ssl_certs=False) as giga:
+            response = giga.chat(user_text)
+            return response.choices[0].message.content
     except Exception as e:
-        await m.answer(f"🤖 У меня возникла заминка. Попробуй еще раз!\nОшибка: {e}")
+        print(f"Ошибка GigaChat: {e}")
+        return "Извини, произошла ошибка при запросе к нейросети."
 
-async def main():
-    # Отключаем лишние предупреждения в консоли
-    import urllib3
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# --- 4. ОБРАБОТЧИКИ ТЕЛЕГРАМ ---
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message, "Привет! Я Baldi AI. Напиши мне что угодно, и я отвечу с помощью GigaChat.")
+
+@bot.message_handler(func=lambda message: True)
+def handle_message(message):
+    # Отправляем статус "печатает", пока ждем нейросеть
+    bot.send_chat_action(message.chat.id, 'typing')
     
-    print(">>> БОТ BALDI AI УСПЕШНО ЗАПУЩЕН!")
-    await dp.start_polling(bot)
+    answer = get_giga_response(message.text)
+    bot.reply_to(message, answer)
 
+# --- 5. ЗАПУСК ВСЕЙ СИСТЕМЫ ---
 if __name__ == "__main__":
-    asyncio.run(main())
-
+    # Запускаем Flask в отдельном потоке
+    print("Запуск веб-сервера для Health Check...")
+    threading.Thread(target=run_web_server, daemon=True).start()
+    
+    # Запускаем бота
+    print("Бот запущен и ожидает сообщений...")
+    # infinity_polling предотвращает вылет бота при сетевых ошибках
+    bot.infinity_polling(timeout=10, long_polling_timeout=5)
