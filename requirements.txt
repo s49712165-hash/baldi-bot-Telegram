@@ -4,3 +4,4 @@ edge-tts
 SpeechRecognition
 pydub
 gigachat 
+flask
