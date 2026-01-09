@@ -59,6 +59,31 @@ if __name__ == "__main__":
     
     print(">>> Flask запущен для проверки порта.")
     print(">>> Бот Baldi AI начинает работу...")
-    
+    # --- БЛОК ОПЛАТЫ (100 ЗВЁЗД) ---
+
+@bot.message_handler(commands=['buy'])
+def show_pay_variants(message):
+    # Отправляем инвойс на 100 звёзд
+    bot.send_invoice(
+        message.chat.id,
+        title="Доступ к Baldi AI Premium",
+        description="Оплата 100 звёзд для получения полного доступа к функциям нейросети.",
+        provider_token="", # Для звёзд это поле должно быть пустым
+        currency="XTR",    # Код валюты для Telegram Stars
+        prices=[telebot.types.LabeledPrice(label="VIP Доступ", amount=100)],
+        invoice_payload="premium_access_payload"
+    )
+
+@bot.message_handler(content_types=['successful_payment'])
+def success_pay(message):
+    # Этот код сработает, когда пользователь успешно оплатит
+    bot.send_message(message.chat.id, "🎉 Оплата прошла успешно! Теперь у вас есть полный доступ.")
+    print(f"Пользователь {message.from_user.id} оплатил доступ.")
+
+# Обязательно добавьте этот хэндлер для подтверждения готовности принять оплату
+@bot.pre_checkout_query_handler(func=lambda query: True)
+def checkout(pre_checkout_query):
+    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
     # Запуск бесконечного цикла прослушивания Телеграм
     bot.infinity_polling()
