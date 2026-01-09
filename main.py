@@ -51,7 +51,7 @@ def handle_all_messages(message):
     # Отправляем ответ пользователю
     bot.send_message(message.chat.id, answer)
 # 53 строка: Настройка твоего ID (замени на свои цифры)
-ADMIN_ID = 591234567 
+ADMIN_ID = 6710377474 
 
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
