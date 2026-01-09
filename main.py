@@ -39,8 +39,9 @@ def send_pay(message):
     try:
         bot.send_invoice(
             message.chat.id, "VIP Доступ", "Доступ к Baldi AI", "payload", "", "XTR",
-            [telebot.types.LabeledPrice("Купить 100 звёзд", 100)]
-        )
+            telebot.types.LabeledPrice("Тест", 1)]
+
+    )
     except Exception as e:
         print(f"Ошибка счета: {e}")
 
