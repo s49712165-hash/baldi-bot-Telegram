@@ -1,8 +1,5 @@
-aiogram
-requests
-edge-tts
-SpeechRecognition
-pydub
-gigachat 
+pyTelegramBotAPI
+gigachat
 flask
-telebot
+gunicorn
+
