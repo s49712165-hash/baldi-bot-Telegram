@@ -35,7 +35,7 @@ def send_pay(message):
             message.chat.id, 
             "VIP Доступ", 
             "Доступ к Бальди", 
-            "new_stars_test_777", # Твой новый payload
+            "final_test_pay_1", # Уникальный ID
             "", 
             "XTR", 
             [telebot.types.LabeledPrice("VIP за 1 звезду", 1)]
@@ -45,13 +45,16 @@ def send_pay(message):
 
 @bot.pre_checkout_query_handler(func=lambda query: True)
 def checkout(pre_checkout_query):
+    # ВОТ ЭТА ФУНКЦИЯ ОТВЕЧАЕТ ЗА ТО, ЧТОБЫ ОПЛАТА НЕ ВИСЛА
     bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+    print("Подтверждение отправлено!")
 
 @bot.message_handler(content_types=['successful_payment'])
 def got_payment(message):
     paid_users.append(message.from_user.id)
-    bot.send_message(message.chat.id, "🎉 Оплата принята! Теперь я тебе отвечаю.")
+    bot.send_message(message.chat.id, "🎉 Оплата прошла! Доступ открыт.")
     bot.send_message(ADMIN_ID, f"💰 Продажа: {message.from_user.id}")
+
 
 # --- 5. ОБРАБОТКА ТЕКСТА ---
 @bot.message_handler(commands=['start'])
