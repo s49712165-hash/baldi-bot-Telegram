@@ -22,6 +22,8 @@ TG_TOKEN = "8257171581:AAG9puuLo5RvkPNKz1XW2QDDBzpri1lw0kc"
 GIGA_KEY = "MDE5Yjg5ZTMtZjg5Ny03ZjE4LTg2NDctODIxN2VkNWI4NTI4OjVkZjViMDlhLTExMzMtNDg2MC04MWMzLTVjNDU5MDhkNmJjOA=="
 
 bot = telebot.TeleBot(TG_TOKEN)
+total_sales = 0
+paid_users = []  # <--- ДОБАВЬ ЭТУ СТРОКУ
 
 # --- 3. ЛОГИКА GIGACHAT ---
 def get_ai_answer(text):
@@ -40,17 +42,20 @@ def send_pay(message):
         bot.send_invoice(
             message.chat.id, 
             "VIP Доступ к Baldi AI", 
-            "Доступ к общению с нейросетью без ограничений.", 
-            "baldi_payload", 
-            "", 
-            "XTR", 
-            [telebot.types.LabeledPrice("Купить 100 звёзд", 100)]
-        )
-    except Exception as e:
-        print(f"Ошибка создания счета: {e}")
+            @bot.message_handler(content_types=['successful_payment'])
+def got_payment(message):
+    global total_sales
+    total_sales += 1
+    
+    # АВТОМАТИЧЕСКИЙ ДОСТУП: добавляем ID пользователя в список
+    paid_users.append(message.from_user.id) 
+    
+    bot.send_message(message.chat.id, "🎉 Оплата принята! Теперь у вас есть доступ к Бальди.")
+    
+    # Отчет тебе
+    report = f"💰 **НОВАЯ ПРОДАЖА!**\nID: `{message.from_user.id}`\nВсего: {total_sales}"
+    bot.send_message(ADMIN_ID, report, parse_mode="Markdown")
 
-@bot.pre_checkout_query_handler(func=lambda query: True)
-def checkout(pre_checkout_query):
     bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
 @bot.message_handler(content_types=['successful_payment'])
