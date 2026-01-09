@@ -13,7 +13,7 @@ def run_web():
     app.run(host='0.0.0.0', port=port)
 
 # --- 2. НАСТРОЙКИ ---
-ADMIN_ID = 6710377474 
+ADMIN_ID = 6710377475 
 TG_TOKEN = "8257171581:AAG9puuLo5RvkPNKz1XW2QDDBzpri1lw0kc"
 GIGA_KEY = "MDE5Yjg5ZTMtZjg5Ny03ZjE4LTg2NDctODIxN2VkNWI4NTI4OjVkZjViMDlhLTExMzMtNDg2MC04MWMzLTVjNDU5MDhkNmJjOA=="
 
