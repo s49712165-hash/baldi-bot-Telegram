@@ -14,7 +14,7 @@ def run_web():
     app.run(host='0.0.0.0', port=port)
 
 # --- 2. НАСТРОЙКИ ---
-TG_TOKEN = "8257171581:AAG9puuLo5RvkPNKz1XW2QDDBzpri1lw0kc"
+TG_TOKEN = "8400025214:AAHAkfze6QAZjULpCY_R9av1vLAM4ec8Idk"
 GIGA_KEY = "MDE5Yjg5ZTMtZjg5Ny03ZjE4LTg2NDctODIxN2VkNWI4NTI4OjVkZjViMDlhLTExMzMtNDg2MC04MWMzLTVjNDU5MDhkNmJjOA=="
 
 bot = telebot.TeleBot(TG_TOKEN)
