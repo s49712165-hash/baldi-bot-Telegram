@@ -1,55 +1,80 @@
-import os
-import threading
-from flask import Flask
-import telebot
+import asyncio
+import logging
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
 from gigachat import GigaChat
 
-# --- 1. СЕРВЕР ДЛЯ RENDER ---
-app = Flask(__name__)
-@app.route('/')
-def health_check(): return "OK", 200
-
-def run_web():
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
-
-# --- 2. НАСТРОЙКИ ---
+# --- ДАННЫЕ АВТОРИЗАЦИИ ---
 TG_TOKEN = "8400025214:AAHAkfze6QAZjULpCY_R9av1vLAM4ec8Idk"
-GIGA_KEY = "MDE5Yjg5ZTMtZjg5Ny03ZjE4LTg2NDctODIxN2VkNWI4NTI4OjVkZjViMDlhLTExMzMtNDg2MC04MWMzLTVjNDU5MDhkNmJjOA=="
+GIGACHAT_CREDENTIALS = "MDE5YjhlMmMtNzhiOC03YThjLTk1ZTQtM2NkOTNjNThlNjkyOmJlZTdiZmUwLWMzODMtNGMxZi05N2FmLTkzZTYwOWQzMTgzMw=="
 
-bot = telebot.TeleBot(TG_TOKEN)
+# Инициализация ботов
+bot = Bot(token=TG_TOKEN)
+dp = Dispatcher()
 
-# --- 3. ЛОГИКА НЕЙРОСЕТИ ---
-def get_ai_answer(text):
+# --- ФУНКЦИИ GIGACHAT ---
+
+def get_baldi_response(text, is_image=False):
+    # verify_ssl_certs=False нужен, если не установлены сертификаты Минцифры
+    with GigaChat(credentials=GIGACHAT_CREDENTIALS, verify_ssl_certs=False) as giga:
+        if is_image:
+            # Для генерации фото просим GigaChat нарисовать
+            prompt = f"Нарисуй: {text}"
+            res = giga.chat(prompt)
+            # Гигачат возвращает тег <img src='...'> в тексте
+            return res.choices[0].message.content
+        else:
+            # Для общения задаем роль Балди
+            payload = {
+                "messages": [
+                    {"role": "system", "content": "Ты — Балди из Baldi's Basics. Ты учитель математики, который злится, когда ошибаются, и обожаешь шлепать линейкой по руке. Твоя речь строгая, странная и учительская."},
+                    {"role": "user", "content": text}
+                ]
+            }
+            res = giga.chat(payload)
+            return res.choices[0].message.content
+
+# --- ОБРАБОТЧИКИ ---
+
+# Команда для общения в группе
+@dp.message(Command("AsktoBaldiAI"))
+async def ask_handler(message: types.Message):
+    # Получаем текст после команды
+    user_text = message.text.replace("/AsktoBaldiAI", "").strip()
+    
+    if not user_text:
+        await message.reply("Ты что-то промямлил? Пиши четче, или получишь линейкой! 📏")
+        return
+
+    response = get_baldi_response(user_text)
+    await message.reply(response)
+
+# Команда для рисования
+@dp.message(Command("draws"))
+async def draw_handler(message: types.Message):
+    prompt = message.text.replace("/draws", "").strip()
+    
+    if not prompt:
+        await message.reply("Что мне нарисовать? У тебя пустая голова, как этот лист! 🎨")
+        return
+
+    status_msg = await message.answer("Так-так... Рисую... ✏️")
+    
     try:
-        # verify_ssl_certs=False нужен для работы GigaChat из-за границы
-        with GigaChat(credentials=GIGA_KEY, verify_ssl_certs=False) as giga:
-            response = giga.chat(text)
-            return response.choices[0].message.content
+        result = get_baldi_response(prompt, is_image=True)
+        # Если GigaChat вернул ссылку или описание картинки
+        await message.answer(f"Вот твой результат для '{prompt}':\n\n{result}")
+        await status_msg.delete()
     except Exception as e:
-        print(f"Ошибка GigaChat: {e}")
-        return "Бальди сейчас занят, попробуй написать позже!"
+        logging.error(e)
+        await status_msg.edit_text("Ошибка в школьном журнале! (Не удалось создать фото)")
 
-# --- 4. ОБРАБОТКА СООБЩЕНИЙ ---
-@bot.message_handler(commands=['start'])
-def welcome(message):
-    bot.reply_to(message, "Привет! Я Бальди. Спрашивай что угодно, я отвечу!")
+# Запуск
+async def main():
+    logging.basicConfig(level=logging.INFO)
+    print("Балди запущен и готов учить!")
+    await dp.start_polling(bot)
 
-@bot.message_handler(func=lambda message: True)
-def handle_text(message):
-    # Показываем, что бот "печатает"
-    bot.send_chat_action(message.chat.id, 'typing')
-    
-    # Получаем ответ от нейросети
-    answer = get_ai_answer(message.text)
-    
-    # Отправляем ответ пользователю
-    bot.send_message(message.chat.id, answer)
-
-# --- 5. ЗАПУСК ---
 if __name__ == "__main__":
-    # Запускаем Flask в отдельном потоке
-    threading.Thread(target=run_web, daemon=True).start()
-    # Запускаем бота
-    print("Бот запущен...")
-    bot.infinity_polling(timeout=20, long_polling_timeout=10)
+    asyncio.run(main())
+
