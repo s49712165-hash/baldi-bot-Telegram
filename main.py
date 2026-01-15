@@ -8,7 +8,7 @@ from threading import Thread
 # --- ТВОИ ДАННЫЕ ---
 TG_TOKEN = "8400025214:AAHAkfze6QAZjULpCY_R9av1vLAM4ec8Idk"
 # Проверь этот ключ! Возможно, он устарел.
-GIGACHAT_CREDENTIALS = "MDE5YjhlMmMtNzhiOC03YThjLTk1ZTQtM2NkOTNjNThlNjkyOjBkYmQxNDg0LTE5ZmMtNDViYy04MmRlLWE4NjgxZTZmMmRiZg=="
+GIGACHAT_CREDENTIALS = "019b8e2c-78b8-7a8c-95e4-3cd93c58e692"
 
 bot = telebot.TeleBot(TG_TOKEN)
 app = Flask('')
@@ -74,6 +74,8 @@ if __name__ == "__main__":
     time.sleep(1)
     
     bot.infinity_polling(skip_pending=True)
+
+
 
 
 
