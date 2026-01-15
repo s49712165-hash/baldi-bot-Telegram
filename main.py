@@ -1,59 +1,53 @@
 import telebot
 from gigachat import GigaChat
 
-# --- ТОКЕНЫ ---
+# --- ТВОИ ДАННЫЕ ---
 TG_TOKEN = "8400025214:AAHAkfze6QAZjULpCY_R9av1vLAM4ec8Idk"
 GIGACHAT_CREDENTIALS = "MDE5YjhlMmMtNzhiOC03YThjLTk1ZTQtM2NkOTNjNThlNjkyOmJlZTdiZmUwLWMzODMtNGMxZi05N2FmLTkzZTYwOWQzMTgzMw=="
 
 bot = telebot.TeleBot(TG_TOKEN)
 
-# --- ФУНКЦИЯ GIGACHAT ---
-def ask_baldi_api(prompt, is_draw=False):
+# Функция для связи с GigaChat
+def giga_request(prompt, is_draw=False):
     with GigaChat(credentials=GIGACHAT_CREDENTIALS, verify_ssl_certs=False) as giga:
-        if is_draw:
-            text = f"Нарисуй: {prompt}"
-        else:
-            text = f"Ты — злой учитель Балди. Ответь ученику на это: {prompt}"
-        
-        res = giga.chat(text)
-        return res.choices[0].message.content
+        content = f"Нарисуй: {prompt}" if is_draw else f"Ты Балди из игры. Ответь ученику: {prompt}"
+        response = giga.chat(content)
+        return response.choices[0].message.content
 
 # --- КОМАНДЫ ---
 
-# Ответ в группе
+# Команда для группы
 @bot.message_handler(commands=['AsktoBaldiAI'])
-def handle_ask(message):
-    query = message.text.replace("/AsktoBaldiAI", "").strip()
-    if not query:
-        bot.reply_to(message, "📏 Где твой вопрос? Живее!")
+def ask_baldi(message):
+    text = message.text.replace("/AsktoBaldiAI", "").strip()
+    if not text:
+        bot.reply_to(message, "📏 Пиши вопрос, лентяй!")
         return
-    answer = ask_baldi_api(query)
-    bot.reply_to(message, answer)
+    bot.reply_to(message, giga_request(text))
 
-# Рисование
+# Команда рисования
 @bot.message_handler(commands=['draws'])
-def handle_draw(message):
-    query = message.text.replace("/draws", "").strip()
-    if not query:
-        bot.reply_to(message, "🎨 Напиши, что нарисовать!")
+def draw_baldi(message):
+    text = message.text.replace("/draws", "").strip()
+    if not text:
+        bot.reply_to(message, "🎨 Что рисовать?")
         return
-    
-    msg = bot.reply_to(message, "Рисую... Погоди...")
+    msg = bot.reply_to(message, "Рисую...")
     try:
-        image_res = ask_baldi_api(query, is_draw=True)
-        bot.send_message(message.chat.id, f"Вот твой рисунок:\n{image_res}")
+        res = giga_request(text, is_draw=True)
+        bot.send_message(message.chat.id, f"Результат:\n{res}")
     except:
-        bot.send_message(message.chat.id, "❌ Не удалось нарисовать.")
+        bot.edit_message_text("Ошибка!", message.chat.id, msg.message_id)
 
-# Твой блок оплаты из скриншотов
+# Исправленный блок оплаты (твои звезды)
 @bot.message_handler(commands=['premium'])
 def send_pay(message):
     try:
         bot.send_invoice(
             message.chat.id, 
             "VIP Доступ", 
-            "Покупка звезд для Балди", 
-            "new_stars_test_777", 
+            "Покупка звезд", 
+            "stars_pay_777", 
             "", 
             "XTR", 
             [telebot.types.LabeledPrice("Цена", 1)]
@@ -61,10 +55,19 @@ def send_pay(message):
     except Exception as e:
         print(f"Ошибка счета: {e}")
 
+# Обязательные обработчики для оплаты
+@bot.pre_checkout_query_handler(func=lambda query: True)
+def checkout(pre_checkout_query):
+    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+@bot.message_handler(content_types=['successful_payment'])
+def got_payment(message):
+    bot.send_message(message.chat.id, "✅ Оплата прошла! Ты теперь VIP!")
+
 # --- ЗАПУСК ---
 if __name__ == "__main__":
-    print("Балди запущен!")
-    # skip_pending=True уберет ошибку 409 при перезапуске
+    print("Бот Балди запущен!")
+    # skip_pending=True решает проблему Error 409
     bot.infinity_polling(skip_pending=True)
 
 
