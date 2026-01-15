@@ -1,5 +1,4 @@
-pyTelegramBotAPI==4.25.0
+pyTelegramBotAPI
 gigachat
-flask
-gunicorn
+
 
