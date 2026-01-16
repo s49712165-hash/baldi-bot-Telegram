@@ -10,7 +10,7 @@ from threading import Thread
 TG_TOKEN = "8400025214:AAHAkfze6QAZjULpCY_R9av1vLAM4ec8Idk"
 
 # 2. ТВОИ АВТОРИЗАЦИОННЫЕ ДАННЫЕ (Самая длинная строка из кабинета Сбера)
-GIGACHAT_CREDENTIALS = "MDE5Yjg5ZWQtYjRlNC03ODg1LWJiMDMtMjM3NDg2MTVmMTc5OjAzNzA2MmMzLTA2ZTAtNGY1Ny04OWEyLTQyMmRlMzI2NDFkZg=="
+GIGACHAT_CREDENTIALS "MDE5YmMyYjYtMjMwZi03OWQyLWEyYzctNWFlODQ3NmEyYzM0OjU1YWUzODQ0LWE4ZjUtNGJiZi1hNDYwLTRiYjBlYTJhNDllNQ=="
 
 bot = telebot.TeleBot(TG_TOKEN)
 app = Flask('')
