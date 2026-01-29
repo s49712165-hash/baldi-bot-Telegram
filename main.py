@@ -10,7 +10,7 @@ TG_TOKEN = "8400025214:AAHAkfze6QAZjULpCY_R9av1vLAM4ec8Idk"
 
 # ВСТАВЬ СЮДА КЛЮЧ ИЗ ЛИЧНОГО КАБИНЕТА (который под "Hello")
 BALDI_API_KEY = "ТВОЙ_КЛЮЧ_ИЗ_ЛИЧНОГО_КАБИНЕТА"
-BALDI_URL = "https://api.baldicloud.ai/v1/chat"
+BALDI_URL = "https://api.baldi.cloud.ai/v1/chat"
 
 bot = telebot.TeleBot(TG_TOKEN)
 app = Flask('')
